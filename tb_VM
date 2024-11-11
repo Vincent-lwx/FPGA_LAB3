@@ -1,0 +1,152 @@
+`timescale 1ns/1ns
+module tb_vm();
+
+    reg sys_clk;
+    reg sys_rst_n;
+    reg pi_money_one;
+    reg pi_money_half;
+
+    wire po_cola;
+    wire po_money_half;
+    wire po_money_one;
+
+    // 时钟信号初始化
+    initial begin
+        sys_clk = 1'b1;
+    end
+    always #10 sys_clk = ~sys_clk;  // 50 MHz 时钟周期为20ns
+
+    // 初始化复位信号
+    initial begin
+        sys_rst_n = 1'b0;
+        #20 sys_rst_n = 1'b1;  // 上电复位
+    end
+
+    // 实例化被测模块
+    vm vm_inst (
+        .sys_clk (sys_clk),
+        .sys_rst_n (sys_rst_n),
+        .pi_money_one (pi_money_one),
+        .pi_money_half (pi_money_half),
+        .po_cola (po_cola),
+        .po_money_half (po_money_half),
+        .po_money_one (po_money_one)
+    );
+
+    // 模拟投币过程
+    initial begin
+        pi_money_one = 1'b0;
+        pi_money_half = 1'b0;
+
+        // 测试1: 投入0.5元 + 1元，进行出货
+        #40;  // 等待系统稳定
+        // 投入0.5元
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        // 投入1元
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+        // 投入0.5元触发出货
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+
+        // 等待一段时间后进行复位
+        #100;
+        sys_rst_n = 1'b0;  // 按下复位按钮
+        #20 sys_rst_n = 1'b1;  // 松开复位按钮
+        #40;
+
+        // 测试2: 投入1元 + 1元，进行出货
+        // 投入1元
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+        // 投入1元触发出货
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+
+        // 测试3: 仅投入0.5元，不足2元不进行出货
+        // 投入0.5元
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        // 投入0.5元时不会出货，仍然等待投币
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+
+        // 等待一段时间后进行复位
+        #100;
+        sys_rst_n = 1'b0;  // 按下复位按钮
+        #20 sys_rst_n = 1'b1;  // 松开复位按钮
+        #40;
+
+        // 测试4: 投入2元一次性完成支付
+        // 投入1元
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+        // 投入1元触发出货
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+
+        // 测试5: 投入1元后进行退款，观察退款金额
+        // 投入1元
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+        // 复位按钮按下，查看退款金额
+        sys_rst_n = 1'b0;  // 按下复位按钮
+        #20 sys_rst_n = 1'b1;  // 松开复位按钮
+        #40;
+
+        // 测试6: 投入0.5元 + 1元 + 0.5元，再次触发出货
+        // 投入0.5元
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        // 投入1元
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+        // 投入0.5元触发出货
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+
+        // 测试7: 只投入0.5元进行退款，确保退款金额正确
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        // 复位按钮按下，查看退款金额
+        sys_rst_n = 1'b0;  // 按下复位按钮
+        #20 sys_rst_n = 1'b1;  // 松开复位按钮
+        #40;
+
+        // 测试8: 投入两次0.5元 + 1元，不出货，观察退款过程
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        pi_money_half = 1'b1;
+        #20 pi_money_half = 1'b0;
+        #40;
+        pi_money_one = 1'b1;
+        #20 pi_money_one = 1'b0;
+        #40;
+
+        // 结束仿真
+        $stop;
+    end
+
+    // 监控信号变化，便于观察波形和调试
+    initial begin
+        $monitor("Time=%0d, sys_rst_n=%b, pi_money_one=%b, pi_money_half=%b, po_cola=%b, po_money_half=%b, po_money_one=%b",
+                 $time, sys_rst_n, pi_money_one, pi_money_half, po_cola, po_money_half, po_money_one);
+    end
+
+endmodule
